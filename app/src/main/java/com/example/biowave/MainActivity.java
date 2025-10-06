@@ -34,7 +34,7 @@ import java.util.UUID;
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final String TAG = "BLEScannerDemo3";
+    private static final String TAG = "BioWave";
     private static final long SCAN_PERIOD = 10000; // 10 sec
     private static final int PERMISSION_REQUEST_CODE = 1;
 
