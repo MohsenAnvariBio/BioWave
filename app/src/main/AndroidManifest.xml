@@ -2,22 +2,30 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- ===== BLUETOOTH PERMISSIONS ===== -->
+    <!-- For Android 12 and below -->
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
 
+    <!-- Needed for BLE scanning on Android 10 and 11 -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="30" />
 
-
-    <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
+    <!-- For Android 12 (API 31) and above -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_SCAN"
         android:usesPermissionFlags="neverForLocation"
         tools:targetApi="31" />
-
-    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_CONNECT"
         tools:targetApi="31" />
 
-    <uses-feature android:name="android.hardware.bluetooth_le" android:required="true"/>
+    <!-- Optional: for some devices that require coarse location for BLE -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" android:maxSdkVersion="30" />
 
+    <!-- BLE hardware feature -->
+    <uses-feature android:name="android.hardware.bluetooth_le" android:required="true" />
 
+    <!-- ===== APPLICATION CONFIG ===== -->
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -28,10 +36,13 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.BioWave">
 
+        <!-- Main Activity fixed in Landscape -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:screenOrientation="landscape"
             android:theme="@style/Theme.BioWave">
+
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -39,4 +50,5 @@
         </activity>
 
     </application>
+
 </manifest>
