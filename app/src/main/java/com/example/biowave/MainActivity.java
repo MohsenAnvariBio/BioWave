@@ -20,6 +20,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -61,19 +62,38 @@ public class MainActivity extends AppCompatActivity {
     private LineData lineData;
     private int sampleIndex = 0;
 
+    // ✅ Amplitude scaling factor
+    private float amplitudeScale = 1.0f;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
 
-        getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        // ✅ Keep screen always on
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         chart = findViewById(R.id.combinedChart);
         setupChart(chart);
 
         deviceList = findViewById(R.id.deviceList);
         scanButton = findViewById(R.id.scanButton);
+
+        // ✅ Amplitude control buttons
+        Button increaseButton = findViewById(R.id.increaseButton);
+        Button decreaseButton = findViewById(R.id.decreaseButton);
+
+        increaseButton.setOnClickListener(v -> {
+            amplitudeScale *= 1.2f;
+            Toast.makeText(this, "Amplitude: x" + String.format("%.2f", amplitudeScale), Toast.LENGTH_SHORT).show();
+        });
+
+        decreaseButton.setOnClickListener(v -> {
+            amplitudeScale /= 1.2f;
+            if (amplitudeScale < 0.1f) amplitudeScale = 0.1f;
+            Toast.makeText(this, "Amplitude: x" + String.format("%.2f", amplitudeScale), Toast.LENGTH_SHORT).show();
+        });
 
         handler = new Handler();
         bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
@@ -169,10 +189,10 @@ public class MainActivity extends AppCompatActivity {
         YAxis left = chart.getAxisLeft();
         left.setDrawGridLines(false);
 
-        // ✅ Fix Y-axis range between -5000 and +5000
+        // ✅ Fixed Y-axis range between -3000 and +3000
         left.setAxisMinimum(-3000f);
         left.setAxisMaximum(3000f);
-        left.setLabelCount(6, true); // evenly spaced labels
+        left.setLabelCount(6, true);
 
         chart.getAxisRight().setEnabled(false);
 
@@ -183,10 +203,10 @@ public class MainActivity extends AppCompatActivity {
         chart.invalidate();
     }
 
-
     private void addEntry(float ecg, float ppg) {
-        ecgDataSet.addEntry(new Entry(sampleIndex, ecg));
-        ppgDataSet.addEntry(new Entry(sampleIndex, ppg));
+        // ✅ Apply amplitude scaling
+        ecgDataSet.addEntry(new Entry(sampleIndex, ecg * amplitudeScale));
+        ppgDataSet.addEntry(new Entry(sampleIndex, ppg * amplitudeScale));
         sampleIndex++;
 
         if (ecgDataSet.getEntryCount() > 300) {
@@ -332,7 +352,7 @@ public class MainActivity extends AppCompatActivity {
                             try {
                                 String[] parts = msg.split(";");
                                 float ecg = Float.parseFloat(parts[0].substring(2));
-                                float ppg = Float.parseFloat(parts[1].substring(2)) * -1;
+                                float ppg = Float.parseFloat(parts[1].substring(2));
                                 addEntry(ecg, ppg);
                             } catch (Exception e) {
                                 Log.e(TAG, "Parse error: " + msg);
