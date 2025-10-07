@@ -65,6 +65,10 @@ public class MainActivity extends AppCompatActivity {
     // ✅ Amplitude scaling factor
     private float amplitudeScale = 1.0f;
 
+    // ✅ Y-axis auto-range control
+    private int outOfRangeCount = 0;
+    private static final float DEFAULT_Y_LIMIT = 3000f;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -176,8 +180,13 @@ public class MainActivity extends AppCompatActivity {
         lineData = new LineData(ecgDataSet, ppgDataSet);
         chart.setData(lineData);
 
-        chart.setTouchEnabled(false);
-        chart.setScaleEnabled(false);
+        chart.setTouchEnabled(true);
+        chart.setDragEnabled(true);
+        chart.setScaleEnabled(true);
+        chart.setPinchZoom(true);
+        chart.setHardwareAccelerationEnabled(true);
+        chart.setDragDecelerationEnabled(true);
+        chart.setDragDecelerationFrictionCoef(0.9f);
         chart.getDescription().setEnabled(false);
         chart.setDrawGridBackground(false);
 
@@ -188,10 +197,8 @@ public class MainActivity extends AppCompatActivity {
 
         YAxis left = chart.getAxisLeft();
         left.setDrawGridLines(false);
-
-        // ✅ Fixed Y-axis range between -3000 and +3000
-        left.setAxisMinimum(-3000f);
-        left.setAxisMaximum(3000f);
+        left.setAxisMinimum(-DEFAULT_Y_LIMIT);
+        left.setAxisMaximum(DEFAULT_Y_LIMIT);
         left.setLabelCount(6, true);
 
         chart.getAxisRight().setEnabled(false);
@@ -203,13 +210,14 @@ public class MainActivity extends AppCompatActivity {
         chart.invalidate();
     }
 
+    // ===== ADD ENTRY WITH AUTO-ZOOM =====
     private void addEntry(float ecg, float ppg) {
-        // ✅ Apply amplitude scaling
         ecgDataSet.addEntry(new Entry(sampleIndex, ecg * amplitudeScale));
         ppgDataSet.addEntry(new Entry(sampleIndex, ppg * amplitudeScale));
         sampleIndex++;
 
-        if (ecgDataSet.getEntryCount() > 300) {
+        // Limit number of points
+        if (ecgDataSet.getEntryCount() > 3000) {
             ecgDataSet.removeFirst();
             ppgDataSet.removeFirst();
         }
@@ -217,6 +225,32 @@ public class MainActivity extends AppCompatActivity {
         lineData.notifyDataChanged();
         chart.notifyDataSetChanged();
         chart.setVisibleXRangeMaximum(300);
+
+        float absEcg = Math.abs(ecg * amplitudeScale);
+        float absPpg = Math.abs(ppg * amplitudeScale);
+        float maxValue = Math.max(absEcg, absPpg);
+
+        YAxis leftAxis = chart.getAxisLeft();
+
+        // ✅ Dynamic zoom logic with anti-flicker
+        if (maxValue > DEFAULT_Y_LIMIT) {
+            outOfRangeCount++;
+            if (outOfRangeCount >= 3) { // must exceed for 3 samples
+                float newMax = (float) (Math.ceil(maxValue / 1000f) * 1000f);
+                leftAxis.setAxisMaximum(newMax);
+                leftAxis.setAxisMinimum(-newMax);
+                leftAxis.setLabelCount(6, true);
+                outOfRangeCount = 0;
+            }
+        } else {
+            outOfRangeCount = 0;
+            if (leftAxis.getAxisMaximum() != DEFAULT_Y_LIMIT || leftAxis.getAxisMinimum() != -DEFAULT_Y_LIMIT) {
+                leftAxis.setAxisMaximum(DEFAULT_Y_LIMIT);
+                leftAxis.setAxisMinimum(-DEFAULT_Y_LIMIT);
+                leftAxis.setLabelCount(6, true);
+            }
+        }
+
         chart.moveViewToX(sampleIndex);
     }
 
