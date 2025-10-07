@@ -237,8 +237,8 @@ public class MainActivity extends AppCompatActivity {
             outOfRangeCount++;
             if (outOfRangeCount >= 3) { // must exceed for 3 samples
                 float newMax = (float) (Math.ceil(maxValue / 1000f) * 1000f);
-                leftAxis.setAxisMaximum(newMax);
-                leftAxis.setAxisMinimum(-newMax);
+                leftAxis.setAxisMaximum(newMax + 10000f);
+                leftAxis.setAxisMinimum(-newMax - 10000f);
                 leftAxis.setLabelCount(6, true);
                 outOfRangeCount = 0;
             }
@@ -360,7 +360,7 @@ public class MainActivity extends AppCompatActivity {
                             if (descriptor != null) {
                                 descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
                                 gatt.writeDescriptor(descriptor);
-                                runOnUiThread(() -> deviceList.setText("Listening for data..."));
+                                runOnUiThread(() -> deviceList.setText("Connected"));
                             }
                         } catch (SecurityException e) {
                             Log.e(TAG, "Notification setup failed", e);
