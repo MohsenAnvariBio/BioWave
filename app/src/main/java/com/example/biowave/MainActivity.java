@@ -34,12 +34,14 @@ import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "BioWave";
-    private static final long SCAN_PERIOD = 10000;
+    private static final long SCAN_PERIOD = 30000;
     private static final int PERMISSION_REQUEST_CODE = 1;
 
     private static final String TARGET_DEVICE_NAME = "DSD TECH";
@@ -69,13 +71,15 @@ public class MainActivity extends AppCompatActivity {
     private int outOfRangeCount = 0;
     private static final float DEFAULT_Y_LIMIT = 3000f;
 
+    // ✅ Buffer for maximum calculation
+    private final List<Float> signalBuffer = new ArrayList<>();
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
 
-        // ✅ Keep screen always on
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         chart = findViewById(R.id.combinedChart);
@@ -84,7 +88,6 @@ public class MainActivity extends AppCompatActivity {
         deviceList = findViewById(R.id.deviceList);
         scanButton = findViewById(R.id.scanButton);
 
-        // ✅ Amplitude control buttons
         Button increaseButton = findViewById(R.id.increaseButton);
         Button decreaseButton = findViewById(R.id.decreaseButton);
 
@@ -117,7 +120,6 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    // ===== PERMISSIONS =====
     private boolean checkBlePermissions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             return ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED &&
@@ -165,7 +167,6 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    // ===== CHART SETUP =====
     private void setupChart(LineChart chart) {
         ecgDataSet = new LineDataSet(null, "ECG");
         ecgDataSet.setColor(0xFFE53935);
@@ -180,6 +181,7 @@ public class MainActivity extends AppCompatActivity {
         lineData = new LineData(ecgDataSet, ppgDataSet);
         chart.setData(lineData);
 
+        // Chart interaction
         chart.setTouchEnabled(true);
         chart.setDragEnabled(true);
         chart.setScaleEnabled(true);
@@ -188,21 +190,31 @@ public class MainActivity extends AppCompatActivity {
         chart.setDragDecelerationEnabled(true);
         chart.setDragDecelerationFrictionCoef(0.9f);
         chart.getDescription().setEnabled(false);
+
+        // Optional: light background to highlight grid
         chart.setDrawGridBackground(false);
 
+        // X Axis
         XAxis xAxis = chart.getXAxis();
-        xAxis.setDrawGridLines(false);
+        xAxis.setDrawGridLines(true);
+        xAxis.setGridColor(0x22000000);
+        xAxis.setGridLineWidth(0.8f);
+        xAxis.setLabelCount(20, true);
         xAxis.setDrawLabels(false);
         xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
 
+        // Y Axis (left)
         YAxis left = chart.getAxisLeft();
-        left.setDrawGridLines(false);
+        left.setDrawGridLines(true);
+        left.setGridColor(0x22000000);
+        left.setGridLineWidth(0.8f);
+        left.setLabelCount(20, true);
         left.setAxisMinimum(-DEFAULT_Y_LIMIT);
         left.setAxisMaximum(DEFAULT_Y_LIMIT);
-        left.setLabelCount(6, true);
-
+        // Disable right axis
         chart.getAxisRight().setEnabled(false);
 
+        // Legend
         Legend legend = chart.getLegend();
         legend.setEnabled(true);
         legend.setTextSize(14f);
@@ -210,7 +222,7 @@ public class MainActivity extends AppCompatActivity {
         chart.invalidate();
     }
 
-    // ===== ADD ENTRY WITH AUTO-ZOOM =====
+
     private void addEntry(float ecg, float ppg) {
         ecgDataSet.addEntry(new Entry(sampleIndex, ecg * amplitudeScale));
         ppgDataSet.addEntry(new Entry(sampleIndex, ppg * amplitudeScale));
@@ -230,15 +242,26 @@ public class MainActivity extends AppCompatActivity {
         float absPpg = Math.abs(ppg * amplitudeScale);
         float maxValue = Math.max(absEcg, absPpg);
 
+        // Find max Y value currently in the visible chart window
+        float visibleMaxY = 0f;
+        for (Entry e : ecgDataSet.getValues()) {
+            float absY = Math.abs(e.getY());
+            if (absY > visibleMaxY) visibleMaxY = absY;
+        }
+        for (Entry e : ppgDataSet.getValues()) {
+            float absY = Math.abs(e.getY());
+            if (absY > visibleMaxY) visibleMaxY = absY;
+        }
+
         YAxis leftAxis = chart.getAxisLeft();
 
-        // ✅ Dynamic zoom logic with anti-flicker
+        // Dynamic zoom logic with anti-flicker
         if (maxValue > DEFAULT_Y_LIMIT) {
             outOfRangeCount++;
-            if (outOfRangeCount >= 3) { // must exceed for 3 samples
-                float newMax = (float) (Math.ceil(maxValue / 1000f) * 1000f);
-                leftAxis.setAxisMaximum(newMax + 10000f);
-                leftAxis.setAxisMinimum(-newMax - 10000f);
+            if (outOfRangeCount >= 10) {
+                float newMax = (float) (Math.ceil(visibleMaxY / 1000f) * 1000f);
+                leftAxis.setAxisMaximum(newMax);
+                leftAxis.setAxisMinimum(-newMax);
                 leftAxis.setLabelCount(6, true);
                 outOfRangeCount = 0;
             }
@@ -254,7 +277,6 @@ public class MainActivity extends AppCompatActivity {
         chart.moveViewToX(sampleIndex);
     }
 
-    // ===== SCAN BUTTON =====
     private void setupScanButton() {
         scanButton.setEnabled(true);
         scanButton.setText("START SCAN");
@@ -312,7 +334,6 @@ public class MainActivity extends AppCompatActivity {
         scanButton.setText("START SCAN");
     }
 
-    // ===== BLE CALLBACK =====
     private final ScanCallback leScanCallback = new ScanCallback() {
         @Override
         public void onScanResult(int callbackType, ScanResult result) {
