@@ -43,7 +43,6 @@ public class MainActivity extends AppCompatActivity {
     private static final String TAG = "BioWave";
     private static final long SCAN_PERIOD = 30000;
     private static final int PERMISSION_REQUEST_CODE = 1;
-
     private static final String TARGET_DEVICE_NAME = "DSD TECH";
     private static final UUID SERVICE_UUID = UUID.fromString("0000ffe0-0000-1000-8000-00805f9b34fb");
     private static final UUID CHARACTERISTIC_UUID = UUID.fromString("0000ffe1-0000-1000-8000-00805f9b34fb");
@@ -53,43 +52,40 @@ public class MainActivity extends AppCompatActivity {
     private BluetoothGatt bluetoothGatt;
     private Handler handler;
     private boolean isScanning = false;
-
     private TextView deviceList;
     private Button scanButton;
-
     private StringBuilder bleBuffer = new StringBuilder();
-
     private LineChart chart;
-    private LineDataSet ecgDataSet, ppgDataSet;
+    private LineDataSet ecgDataSet, ppgDataSet, spo2DataSet;
     private LineData lineData;
     private int sampleIndex = 0;
 
-    // ✅ Amplitude scaling factor
+    // Amplitude scaling factor
     private float amplitudeScale = 1.0f;
-
-    // ✅ Y-axis auto-range control
+    // Y-axis auto-range control
     private int outOfRangeCount = 0;
-    private static final float DEFAULT_Y_LIMIT = 3000f;
+    private static final float DEFAULT_Y_LIMIT = 8000f;
 
-    // ✅ Buffer for maximum calculation
     private final List<Float> signalBuffer = new ArrayList<>();
+
+
+    private TextView spo2TextView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
-
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         chart = findViewById(R.id.combinedChart);
         setupChart(chart);
-
         deviceList = findViewById(R.id.deviceList);
         scanButton = findViewById(R.id.scanButton);
-
         Button increaseButton = findViewById(R.id.increaseButton);
         Button decreaseButton = findViewById(R.id.decreaseButton);
+        spo2TextView = findViewById(R.id.spo2TextView);
+
 
         increaseButton.setOnClickListener(v -> {
             amplitudeScale *= 1.2f;
@@ -137,9 +133,7 @@ public class MainActivity extends AppCompatActivity {
                     Manifest.permission.BLUETOOTH_CONNECT
             };
         } else {
-            permissions = new String[]{
-                    Manifest.permission.ACCESS_FINE_LOCATION
-            };
+            permissions = new String[]{Manifest.permission.ACCESS_FINE_LOCATION};
         }
         ActivityCompat.requestPermissions(this, permissions, PERMISSION_REQUEST_CODE);
     }
@@ -147,7 +141,6 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-
         if (requestCode == PERMISSION_REQUEST_CODE) {
             boolean allGranted = true;
             for (int result : grantResults) {
@@ -156,7 +149,6 @@ public class MainActivity extends AppCompatActivity {
                     break;
                 }
             }
-
             if (allGranted) {
                 deviceList.setText("Permissions granted. Ready to scan.");
                 setupScanButton();
@@ -178,10 +170,14 @@ public class MainActivity extends AppCompatActivity {
         ppgDataSet.setDrawCircles(false);
         ppgDataSet.setLineWidth(1.5f);
 
-        lineData = new LineData(ecgDataSet, ppgDataSet);
+        spo2DataSet = new LineDataSet(null, "SpO₂");
+        spo2DataSet.setColor(0xFF2196F3);
+        spo2DataSet.setDrawCircles(false);
+        spo2DataSet.setLineWidth(2f);
+
+        lineData = new LineData(ecgDataSet, ppgDataSet, spo2DataSet);
         chart.setData(lineData);
 
-        // Chart interaction
         chart.setTouchEnabled(true);
         chart.setDragEnabled(true);
         chart.setScaleEnabled(true);
@@ -190,11 +186,8 @@ public class MainActivity extends AppCompatActivity {
         chart.setDragDecelerationEnabled(true);
         chart.setDragDecelerationFrictionCoef(0.9f);
         chart.getDescription().setEnabled(false);
-
-        // Optional: light background to highlight grid
         chart.setDrawGridBackground(false);
 
-        // X Axis
         XAxis xAxis = chart.getXAxis();
         xAxis.setDrawGridLines(true);
         xAxis.setGridColor(0x22000000);
@@ -203,7 +196,6 @@ public class MainActivity extends AppCompatActivity {
         xAxis.setDrawLabels(false);
         xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
 
-        // Y Axis (left)
         YAxis left = chart.getAxisLeft();
         left.setDrawGridLines(true);
         left.setGridColor(0x22000000);
@@ -211,10 +203,9 @@ public class MainActivity extends AppCompatActivity {
         left.setLabelCount(20, true);
         left.setAxisMinimum(-DEFAULT_Y_LIMIT);
         left.setAxisMaximum(DEFAULT_Y_LIMIT);
-        // Disable right axis
+
         chart.getAxisRight().setEnabled(false);
 
-        // Legend
         Legend legend = chart.getLegend();
         legend.setEnabled(true);
         legend.setTextSize(14f);
@@ -222,60 +213,124 @@ public class MainActivity extends AppCompatActivity {
         chart.invalidate();
     }
 
+//    private void addEntry(float ecg, float ppg, float spo2) {
+//        ecgDataSet.addEntry(new Entry(sampleIndex, ecg * amplitudeScale));
+//        ppgDataSet.addEntry(new Entry(sampleIndex, ppg * amplitudeScale));
+//        sampleIndex++;
+//
+//        if (ecgDataSet.getEntryCount() > 3000) {
+//            ecgDataSet.removeFirst();
+//            ppgDataSet.removeFirst();
+//        }
+//
+//        if (!Float.isNaN(spo2)) {
+//            spo2DataSet.addEntry(new Entry(sampleIndex, spo2));
+//            spo2TextView.setText(String.format("SpO₂: %.3f %%", spo2));
+//        }
+//
+//
+//        lineData.notifyDataChanged();
+//        chart.notifyDataSetChanged();
+//        chart.setVisibleXRangeMaximum(300);
+//
+//        float absEcg = Math.abs(ecg * amplitudeScale);
+//        float absPpg = Math.abs(ppg * amplitudeScale);
+//        float maxValue = Math.max(absEcg, absPpg);
+//
+//        float visibleMaxY = 0f;
+//        for (Entry e : ecgDataSet.getValues()) {
+//            float absY = Math.abs(e.getY());
+//            if (absY > visibleMaxY) visibleMaxY = absY;
+//        }
+//        for (Entry e : ppgDataSet.getValues()) {
+//            float absY = Math.abs(e.getY());
+//            if (absY > visibleMaxY) visibleMaxY = absY;
+//        }
+//
+//        YAxis leftAxis = chart.getAxisLeft();
+//
+//        if (maxValue > DEFAULT_Y_LIMIT) {
+//            outOfRangeCount++;
+//            if (outOfRangeCount >= 10) {
+//                float newMax = (float) (Math.ceil(visibleMaxY / 1000f) * 1000f);
+//                leftAxis.setAxisMaximum(newMax);
+//                leftAxis.setAxisMinimum(-newMax);
+//                leftAxis.setLabelCount(6, true);
+//                outOfRangeCount = 0;
+//            }
+//        } else {
+//            outOfRangeCount = 0;
+//            if (leftAxis.getAxisMaximum() != DEFAULT_Y_LIMIT || leftAxis.getAxisMinimum() != -DEFAULT_Y_LIMIT) {
+//                leftAxis.setAxisMaximum(DEFAULT_Y_LIMIT);
+//                leftAxis.setAxisMinimum(-DEFAULT_Y_LIMIT);
+//                leftAxis.setLabelCount(6, true);
+//            }
+//        }
+//
+//        chart.moveViewToX(sampleIndex);
+//    }
 
-    private void addEntry(float ecg, float ppg) {
+    private void addEntry(float ecg, float ppg, float spo2) {
         ecgDataSet.addEntry(new Entry(sampleIndex, ecg * amplitudeScale));
         ppgDataSet.addEntry(new Entry(sampleIndex, ppg * amplitudeScale));
         sampleIndex++;
 
-        // Limit number of points
-        if (ecgDataSet.getEntryCount() > 3000) {
+        // Remove oldest points to limit memory
+        if (ecgDataSet.getEntryCount() > 1000) {
             ecgDataSet.removeFirst();
             ppgDataSet.removeFirst();
         }
 
+        // Add SpO₂ value
+        if (!Float.isNaN(spo2)) {
+            spo2DataSet.addEntry(new Entry(sampleIndex, spo2));
+            spo2TextView.setText(String.format("SpO₂: %.3f %%", spo2));
+        }
+
+        // Update chart data
         lineData.notifyDataChanged();
         chart.notifyDataSetChanged();
-        chart.setVisibleXRangeMaximum(300);
+        chart.setVisibleXRangeMaximum(1000);
+        chart.moveViewToX(sampleIndex);
 
-        float absEcg = Math.abs(ecg * amplitudeScale);
-        float absPpg = Math.abs(ppg * amplitudeScale);
-        float maxValue = Math.max(absEcg, absPpg);
+        // --- 🔹 Compute visible window range manually ---
+        float visibleWindow = 1000f;
+        float highestVisibleX = sampleIndex;
+        float lowestVisibleX = highestVisibleX - visibleWindow;
 
-        // Find max Y value currently in the visible chart window
-        float visibleMaxY = 0f;
+        // --- 🔹 Find visible max and min among entries ---
+        float visibleMaxY = Float.NEGATIVE_INFINITY;
+        float visibleMinY = Float.POSITIVE_INFINITY;
+
         for (Entry e : ecgDataSet.getValues()) {
-            float absY = Math.abs(e.getY());
-            if (absY > visibleMaxY) visibleMaxY = absY;
+            if (e.getX() >= lowestVisibleX && e.getX() <= highestVisibleX) {
+                if (e.getY() > visibleMaxY) visibleMaxY = e.getY();
+                if (e.getY() < visibleMinY) visibleMinY = e.getY();
+            }
         }
         for (Entry e : ppgDataSet.getValues()) {
-            float absY = Math.abs(e.getY());
-            if (absY > visibleMaxY) visibleMaxY = absY;
+            if (e.getX() >= lowestVisibleX && e.getX() <= highestVisibleX) {
+                if (e.getY() > visibleMaxY) visibleMaxY = e.getY();
+                if (e.getY() < visibleMinY) visibleMinY = e.getY();
+            }
         }
 
+        // --- 🔹 Dynamically adjust Y-axis based on visible min/max ---
         YAxis leftAxis = chart.getAxisLeft();
+        float margin = 0.1f; // 20% padding
 
-        // Dynamic zoom logic with anti-flicker
-        if (maxValue > DEFAULT_Y_LIMIT) {
-            outOfRangeCount++;
-            if (outOfRangeCount >= 10) {
-                float newMax = (float) (Math.ceil(visibleMaxY / 1000f) * 1000f);
-                leftAxis.setAxisMaximum(newMax);
-                leftAxis.setAxisMinimum(-newMax);
-                leftAxis.setLabelCount(6, true);
-                outOfRangeCount = 0;
-            }
-        } else {
-            outOfRangeCount = 0;
-            if (leftAxis.getAxisMaximum() != DEFAULT_Y_LIMIT || leftAxis.getAxisMinimum() != -DEFAULT_Y_LIMIT) {
-                leftAxis.setAxisMaximum(DEFAULT_Y_LIMIT);
-                leftAxis.setAxisMinimum(-DEFAULT_Y_LIMIT);
-                leftAxis.setLabelCount(6, true);
-            }
-        }
+        // Add margin and prevent collapse below default limit
+        float newMax = Math.max(DEFAULT_Y_LIMIT, Math.abs(visibleMaxY) * (1 + margin));
+        float newMin = -Math.max(DEFAULT_Y_LIMIT, Math.abs(visibleMinY) * (1 + margin));
+//        float newMax = visibleMaxY * (1 + margin);
+//        float newMin = visibleMinY * (1 + margin); // keep negative if waveform is negative
 
-        chart.moveViewToX(sampleIndex);
+
+        leftAxis.setAxisMaximum(newMax);
+        leftAxis.setAxisMinimum(newMin);
+        leftAxis.setLabelCount(6, true);
     }
+
 
     private void setupScanButton() {
         scanButton.setEnabled(true);
@@ -285,13 +340,11 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(this, "Enable Bluetooth first.", Toast.LENGTH_SHORT).show();
                 return;
             }
-
             if (!checkBlePermissions()) {
                 Toast.makeText(this, "Permission missing.", Toast.LENGTH_SHORT).show();
                 requestBlePermissions();
                 return;
             }
-
             if (isScanning) {
                 stopScanning();
             } else {
@@ -342,7 +395,6 @@ public class MainActivity extends AppCompatActivity {
             if (name != null && name.equals(TARGET_DEVICE_NAME)) {
                 stopScanning();
                 runOnUiThread(() -> deviceList.setText("Found device: connecting..."));
-
                 try {
                     bluetoothGatt = device.connectGatt(MainActivity.this, false, gattCallback);
                 } catch (SecurityException e) {
@@ -406,9 +458,14 @@ public class MainActivity extends AppCompatActivity {
                         if (msg.startsWith("E:") && msg.contains(";P:")) {
                             try {
                                 String[] parts = msg.split(";");
+                                Log.d(TAG, "Received: " + msg);
                                 float ecg = Float.parseFloat(parts[0].substring(2));
                                 float ppg = Float.parseFloat(parts[1].substring(2));
-                                addEntry(ecg, ppg);
+                                float spo2 = Float.NaN;
+                                if (parts.length >= 3 && parts[2].startsWith("S:") && parts[2].length() > 2) {
+                                    spo2 = Float.parseFloat(parts[2].substring(2));
+                                }
+                                addEntry(-ecg, -ppg, spo2);
                             } catch (Exception e) {
                                 Log.e(TAG, "Parse error: " + msg);
                             }
@@ -423,7 +480,8 @@ public class MainActivity extends AppCompatActivity {
         if (bluetoothGatt != null) {
             try {
                 bluetoothGatt.close();
-            } catch (SecurityException ignored) {}
+            } catch (SecurityException ignored) {
+            }
             bluetoothGatt = null;
         }
     }

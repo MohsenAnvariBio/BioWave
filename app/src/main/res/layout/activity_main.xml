@@ -40,6 +40,19 @@
             android:layout_height="0dp"
             android:layout_weight="1" />
 
+        <!-- SpO2 display -->
+        <TextView
+            android:id="@+id/spo2TextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="SpO₂: -- %"
+            android:textSize="24sp"
+            android:textColor="#2196F3"
+            android:layout_marginTop="8dp"
+            android:gravity="center_horizontal"
+            android:layout_gravity="center_horizontal" />
+
+
         <!-- Amplitude Control Buttons -->
         <LinearLayout
             android:orientation="horizontal"
