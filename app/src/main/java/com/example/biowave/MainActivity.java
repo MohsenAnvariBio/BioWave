@@ -37,6 +37,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import android.widget.Switch;
+
 
 public class MainActivity extends AppCompatActivity {
 
@@ -64,12 +66,20 @@ public class MainActivity extends AppCompatActivity {
     private float amplitudeScale = 1.0f;
     // Y-axis auto-range control
     private int outOfRangeCount = 0;
-    private static final float DEFAULT_Y_LIMIT = 8000f;
+    private static final float DEFAULT_Y_LIMIT = 6000f;
 
     private final List<Float> signalBuffer = new ArrayList<>();
 
+    private float visibleWindow = 1000f;
 
     private TextView spo2TextView;
+    private TextView hrTextView;
+    private TextView tempTextView;
+
+
+    private Switch autoYSwitch;
+    private boolean autoYEnabled = true;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -78,26 +88,50 @@ public class MainActivity extends AppCompatActivity {
         setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
+        // === Chart setup ===
         chart = findViewById(R.id.combinedChart);
         setupChart(chart);
+
+        // === UI Elements ===
         deviceList = findViewById(R.id.deviceList);
         scanButton = findViewById(R.id.scanButton);
         Button increaseButton = findViewById(R.id.increaseButton);
         Button decreaseButton = findViewById(R.id.decreaseButton);
         spo2TextView = findViewById(R.id.spo2TextView);
+        hrTextView = findViewById(R.id.hrTextView);
+        tempTextView = findViewById(R.id.tempTextView);
+        autoYSwitch = findViewById(R.id.autoYSwitch);
 
+        // === Default test values (optional, for UI preview) ===
+        spo2TextView.setText("98 %");
+        hrTextView.setText("76 bpm");
+        tempTextView.setText("36.7 °C");
 
+        // === Switch setup ===
+        autoYSwitch.setChecked(true);
+        autoYSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            autoYEnabled = isChecked;
+            String mode = isChecked ? "Auto Y-Axis: ON" : "Auto Y-Axis: OFF (Fixed)";
+            Toast.makeText(this, mode, Toast.LENGTH_SHORT).show();
+        });
+
+        // === Buttons setup ===
         increaseButton.setOnClickListener(v -> {
             amplitudeScale *= 1.2f;
-            Toast.makeText(this, "Amplitude: x" + String.format("%.2f", amplitudeScale), Toast.LENGTH_SHORT).show();
+            Toast.makeText(this,
+                    "Amplitude: x" + String.format("%.2f", amplitudeScale),
+                    Toast.LENGTH_SHORT).show();
         });
 
         decreaseButton.setOnClickListener(v -> {
             amplitudeScale /= 1.2f;
             if (amplitudeScale < 0.1f) amplitudeScale = 0.1f;
-            Toast.makeText(this, "Amplitude: x" + String.format("%.2f", amplitudeScale), Toast.LENGTH_SHORT).show();
+            Toast.makeText(this,
+                    "Amplitude: x" + String.format("%.2f", amplitudeScale),
+                    Toast.LENGTH_SHORT).show();
         });
 
+        // === Bluetooth setup ===
         handler = new Handler();
         bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
 
@@ -115,6 +149,7 @@ public class MainActivity extends AppCompatActivity {
             requestBlePermissions();
         }
     }
+
 
     private boolean checkBlePermissions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -213,62 +248,6 @@ public class MainActivity extends AppCompatActivity {
         chart.invalidate();
     }
 
-//    private void addEntry(float ecg, float ppg, float spo2) {
-//        ecgDataSet.addEntry(new Entry(sampleIndex, ecg * amplitudeScale));
-//        ppgDataSet.addEntry(new Entry(sampleIndex, ppg * amplitudeScale));
-//        sampleIndex++;
-//
-//        if (ecgDataSet.getEntryCount() > 3000) {
-//            ecgDataSet.removeFirst();
-//            ppgDataSet.removeFirst();
-//        }
-//
-//        if (!Float.isNaN(spo2)) {
-//            spo2DataSet.addEntry(new Entry(sampleIndex, spo2));
-//            spo2TextView.setText(String.format("SpO₂: %.3f %%", spo2));
-//        }
-//
-//
-//        lineData.notifyDataChanged();
-//        chart.notifyDataSetChanged();
-//        chart.setVisibleXRangeMaximum(300);
-//
-//        float absEcg = Math.abs(ecg * amplitudeScale);
-//        float absPpg = Math.abs(ppg * amplitudeScale);
-//        float maxValue = Math.max(absEcg, absPpg);
-//
-//        float visibleMaxY = 0f;
-//        for (Entry e : ecgDataSet.getValues()) {
-//            float absY = Math.abs(e.getY());
-//            if (absY > visibleMaxY) visibleMaxY = absY;
-//        }
-//        for (Entry e : ppgDataSet.getValues()) {
-//            float absY = Math.abs(e.getY());
-//            if (absY > visibleMaxY) visibleMaxY = absY;
-//        }
-//
-//        YAxis leftAxis = chart.getAxisLeft();
-//
-//        if (maxValue > DEFAULT_Y_LIMIT) {
-//            outOfRangeCount++;
-//            if (outOfRangeCount >= 10) {
-//                float newMax = (float) (Math.ceil(visibleMaxY / 1000f) * 1000f);
-//                leftAxis.setAxisMaximum(newMax);
-//                leftAxis.setAxisMinimum(-newMax);
-//                leftAxis.setLabelCount(6, true);
-//                outOfRangeCount = 0;
-//            }
-//        } else {
-//            outOfRangeCount = 0;
-//            if (leftAxis.getAxisMaximum() != DEFAULT_Y_LIMIT || leftAxis.getAxisMinimum() != -DEFAULT_Y_LIMIT) {
-//                leftAxis.setAxisMaximum(DEFAULT_Y_LIMIT);
-//                leftAxis.setAxisMinimum(-DEFAULT_Y_LIMIT);
-//                leftAxis.setLabelCount(6, true);
-//            }
-//        }
-//
-//        chart.moveViewToX(sampleIndex);
-//    }
 
     private void addEntry(float ecg, float ppg, float spo2) {
         ecgDataSet.addEntry(new Entry(sampleIndex, ecg * amplitudeScale));
@@ -276,7 +255,7 @@ public class MainActivity extends AppCompatActivity {
         sampleIndex++;
 
         // Remove oldest points to limit memory
-        if (ecgDataSet.getEntryCount() > 1000) {
+        if (ecgDataSet.getEntryCount() > visibleWindow) {
             ecgDataSet.removeFirst();
             ppgDataSet.removeFirst();
         }
@@ -290,11 +269,11 @@ public class MainActivity extends AppCompatActivity {
         // Update chart data
         lineData.notifyDataChanged();
         chart.notifyDataSetChanged();
-        chart.setVisibleXRangeMaximum(1000);
+        chart.setVisibleXRangeMaximum(visibleWindow);
         chart.moveViewToX(sampleIndex);
 
         // --- 🔹 Compute visible window range manually ---
-        float visibleWindow = 1000f;
+
         float highestVisibleX = sampleIndex;
         float lowestVisibleX = highestVisibleX - visibleWindow;
 
@@ -319,16 +298,19 @@ public class MainActivity extends AppCompatActivity {
         YAxis leftAxis = chart.getAxisLeft();
         float margin = 0.1f; // 20% padding
 
-        // Add margin and prevent collapse below default limit
-        float newMax = Math.max(DEFAULT_Y_LIMIT, Math.abs(visibleMaxY) * (1 + margin));
-        float newMin = -Math.max(DEFAULT_Y_LIMIT, Math.abs(visibleMinY) * (1 + margin));
-//        float newMax = visibleMaxY * (1 + margin);
-//        float newMin = visibleMinY * (1 + margin); // keep negative if waveform is negative
-
-
-        leftAxis.setAxisMaximum(newMax);
-        leftAxis.setAxisMinimum(newMin);
+        if (autoYEnabled) {
+            // --- Auto Y-axis ---
+            float newMax = Math.max(DEFAULT_Y_LIMIT, Math.abs(visibleMaxY) * (1 + margin));
+            float newMin = -Math.max(DEFAULT_Y_LIMIT, Math.abs(visibleMinY) * (1 + margin));
+            leftAxis.setAxisMaximum(newMax);
+            leftAxis.setAxisMinimum(newMin);
+        } else {
+            // --- Fixed Y-axis ---
+            leftAxis.setAxisMaximum(DEFAULT_Y_LIMIT);
+            leftAxis.setAxisMinimum(-DEFAULT_Y_LIMIT);
+        }
         leftAxis.setLabelCount(6, true);
+
     }
 
 
@@ -337,7 +319,7 @@ public class MainActivity extends AppCompatActivity {
         scanButton.setText("START SCAN");
         scanButton.setOnClickListener(v -> {
             if (!bluetoothAdapter.isEnabled()) {
-                Toast.makeText(this, "Enable Bluetooth first.", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Enable Bluetooth.", Toast.LENGTH_SHORT).show();
                 return;
             }
             if (!checkBlePermissions()) {
@@ -360,7 +342,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         if (enable) {
-            deviceList.setText("Scanning for " + TARGET_DEVICE_NAME + "...");
+            deviceList.setText("Scanning:" + TARGET_DEVICE_NAME);
             isScanning = true;
             handler.postDelayed(this::stopScanning, SCAN_PERIOD);
             try {

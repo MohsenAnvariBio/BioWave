@@ -1,9 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:orientation="horizontal"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="8dp">
+    android:padding="8dp"
+    android:background="@android:color/transparent"
+    tools:context=".MainActivity">
 
     <!-- Left-side control panel -->
     <LinearLayout
@@ -13,7 +16,7 @@
         android:gravity="top"
         android:padding="8dp">
 
-        <!-- Scan Button -->
+        <!-- Scan button -->
         <Button
             android:id="@+id/scanButton"
             android:text="START SCAN"
@@ -32,28 +35,112 @@
             android:layout_height="wrap_content"
             android:textSize="16sp"
             android:padding="10dp"
-            android:layout_marginBottom="20dp" />
+            android:layout_marginBottom="20dp"
+            android:background="@drawable/info_box" />
 
-        <!-- Spacer to push amplitude buttons to bottom -->
+        <!-- Measurement boxes -->
+        <LinearLayout
+            android:id="@+id/measurementsContainer"
+            android:orientation="vertical"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_horizontal"
+            android:layout_marginBottom="16dp">
+
+            <!-- SpO₂ -->
+            <LinearLayout
+                android:id="@+id/spo2Container"
+                android:orientation="vertical"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/info_box"
+                android:padding="8dp"
+                android:layout_marginBottom="8dp"
+                android:gravity="center">
+
+                <TextView
+                    android:id="@+id/spo2Label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="SpO₂"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:textColor="#283366" />
+
+                <TextView
+                    android:id="@+id/spo2TextView"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="-- %"
+                    android:textSize="22sp"
+                    android:textColor="#000000" />
+            </LinearLayout>
+
+            <!-- Heart Rate -->
+            <LinearLayout
+                android:id="@+id/hrContainer"
+                android:orientation="vertical"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/info_box"
+                android:padding="8dp"
+                android:layout_marginBottom="8dp"
+                android:gravity="center">
+
+                <TextView
+                    android:id="@+id/hrLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Heart Rate"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:textColor="#283366" />
+
+                <TextView
+                    android:id="@+id/hrTextView"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="-- bpm"
+                    android:textSize="22sp"
+                    android:textColor="#000000" />
+            </LinearLayout>
+
+            <!-- Temperature -->
+            <LinearLayout
+                android:id="@+id/tempContainer"
+                android:orientation="vertical"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/info_box"
+                android:padding="8dp"
+                android:gravity="center">
+
+                <TextView
+                    android:id="@+id/tempLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Temperature"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:textColor="#283366" />
+
+                <TextView
+                    android:id="@+id/tempTextView"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="-- °C"
+                    android:textSize="22sp"
+                    android:textColor="#000000" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Spacer -->
         <View
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1" />
 
-        <!-- SpO2 display -->
-        <TextView
-            android:id="@+id/spo2TextView"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="SpO₂: -- %"
-            android:textSize="24sp"
-            android:textColor="#2196F3"
-            android:layout_marginTop="8dp"
-            android:gravity="center_horizontal"
-            android:layout_gravity="center_horizontal" />
-
-
-        <!-- Amplitude Control Buttons -->
+        <!-- Control buttons -->
         <LinearLayout
             android:orientation="horizontal"
             android:layout_width="match_parent"
@@ -74,19 +161,35 @@
                 android:layout_width="60dp"
                 android:layout_height="60dp"
                 android:background="@drawable/plus"
-                android:contentDescription="increase"
+                android:contentDescription="Increase"
                 android:padding="0dp" />
-
-
         </LinearLayout>
-
     </LinearLayout>
 
-    <!-- Chart on the right -->
-    <com.github.mikephil.charting.charts.LineChart
-        android:id="@+id/combinedChart"
+    <!-- Chart area -->
+    <FrameLayout
         android:layout_width="0dp"
         android:layout_height="match_parent"
         android:layout_weight="1"
-        android:layout_marginStart="8dp" />
+        android:layout_marginStart="8dp"
+        tools:ignore="UseSwitchCompatOrMaterialXml">
+
+        <com.github.mikephil.charting.charts.LineChart
+            android:id="@+id/combinedChart"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <Switch
+            android:id="@+id/autoYSwitch"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Auto Y-Axis"
+            android:textSize="14sp"
+            android:checked="true"
+            android:layout_gravity="top|end"
+            android:layout_margin="8dp"
+            android:trackTint="@color/switch_track_color"
+            android:thumbTint="@color/switch_thumb_color"
+            android:background="@android:color/transparent" />
+    </FrameLayout>
 </LinearLayout>
