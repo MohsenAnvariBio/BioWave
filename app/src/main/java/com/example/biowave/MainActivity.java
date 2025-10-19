@@ -16,10 +16,12 @@ import android.bluetooth.le.BluetoothLeScanner;
 import android.bluetooth.le.ScanCallback;
 import android.bluetooth.le.ScanResult;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
+import android.view.Window;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.Switch;
@@ -82,11 +84,15 @@ public class MainActivity extends AppCompatActivity {
         setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
+        Window window = getWindow();
+        window.setStatusBarColor(Color.rgb(255, 245, 247));      // top bar (battery, clock)
+        window.setNavigationBarColor(Color.rgb(255, 245, 247));  // bottom bar (system buttons)
+
         // === Chart setup ===
         ecgChart = findViewById(R.id.ecgChart);
         ppgChart = findViewById(R.id.ppgChart);
-        setupChart(ecgChart, "ECG", 0xFFE53935);
-        setupChart(ppgChart, "PPG", 0xFF43A047);
+        setupChart(ecgChart, "ECG", 0xFF04290B);
+        setupChart(ppgChart, "PPG", 0xFF04290B);
 
         // === UI Elements ===
         deviceList = findViewById(R.id.deviceList);
@@ -100,8 +106,6 @@ public class MainActivity extends AppCompatActivity {
         // switches (two independent)
         autoYECGSwitch = findViewById(R.id.autoYECGSwitch);
         autoYPPGSwitch = findViewById(R.id.autoYPPGSwitch);
-
-
 
         // default values for measurement text
         spo2TextView.setText("98 %");
@@ -207,22 +211,23 @@ public class MainActivity extends AppCompatActivity {
         chart.getDescription().setEnabled(false);
         chart.setDrawGridBackground(false);
         chart.setDrawBorders(false);
+        chart.setBackgroundColor(Color.rgb(255, 245, 247));
         // Remove all padding/offsets to stick charts together
-        chart.setExtraOffsets(0, 0, 0, 0);
-        chart.setViewPortOffsets(0, 0, 0, 0);
+//        chart.setExtraOffsets(0, 0, 0, 0);
+//        chart.setViewPortOffsets(0, 0, 0, 0);
 
 
         XAxis xAxis = chart.getXAxis();
         xAxis.setDrawGridLines(true);
         xAxis.setGridColor(0x22000000);
-//        xAxis.setLabelCount(20, true);
+        xAxis.setLabelCount(80, true);
         xAxis.setDrawLabels(false);
 
         YAxis left = chart.getAxisLeft();
         left.setDrawGridLines(true);
         left.setGridColor(0x22000000);
-//        left.setLabelCount(6, true);
-        left.setDrawLabels(true);
+        left.setLabelCount(40, true);
+        left.setDrawLabels(false);
 
 
         // set default axis limits per chart type
