@@ -1,14 +1,13 @@
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
 
-    <solid android:color="#F7E6E9" /> <!-- Background color -->
+    <!-- Background color -->
+    <solid android:color="#232C5A" />
 
-    <stroke
-        android:width="2dp"
-        android:color="#283366" /> <!-- Border color -->
+    <!-- Remove corner rounding -->
+    <corners android:radius="10dp" />
 
-    <corners android:radius="10dp" /> <!-- Rounded corners -->
-
+    <!-- Optional padding -->
     <padding
         android:left="6dp"
         android:top="6dp"

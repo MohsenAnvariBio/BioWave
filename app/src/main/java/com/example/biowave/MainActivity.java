@@ -66,9 +66,9 @@ public class MainActivity extends AppCompatActivity {
     private float amplitudeScale = 1.0f;
     private static final float ECG_DEFAULT_MIN = -3f;
     private static final float ECG_DEFAULT_MAX = 3f;
-    private static final float PPG_DEFAULT_MIN = -5000f;
-    private static final float PPG_DEFAULT_MAX = 5000f;
-    private float visibleWindow = 700f;
+    private static final float PPG_DEFAULT_MIN = -7000f;
+    private static final float PPG_DEFAULT_MAX = 7000f;
+    private float visibleWindow = 800f;
 
     private TextView spo2TextView, hrTextView, tempTextView;
     private Switch autoYECGSwitch, autoYPPGSwitch;
@@ -85,20 +85,20 @@ public class MainActivity extends AppCompatActivity {
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         Window window = getWindow();
-        window.setStatusBarColor(Color.rgb(255, 245, 247));      // top bar (battery, clock)
-        window.setNavigationBarColor(Color.rgb(255, 245, 247));  // bottom bar (system buttons)
+        window.setStatusBarColor(Color.rgb(247, 230, 233));
+        window.setNavigationBarColor(Color.rgb(247, 230, 233));
 
         // === Chart setup ===
         ecgChart = findViewById(R.id.ecgChart);
         ppgChart = findViewById(R.id.ppgChart);
-        setupChart(ecgChart, "ECG", 0xFF04290B);
-        setupChart(ppgChart, "PPG", 0xFF04290B);
+        setupChart(ecgChart, "ECG", 0xFF232C5A);
+        setupChart(ppgChart, "PPG", 0xFF232C5A);
 
         // === UI Elements ===
         deviceList = findViewById(R.id.deviceList);
         scanButton = findViewById(R.id.scanButton);
-        Button increaseButton = findViewById(R.id.increaseButton);
-        Button decreaseButton = findViewById(R.id.decreaseButton);
+//        Button increaseButton = findViewById(R.id.increaseButton);
+//        Button decreaseButton = findViewById(R.id.decreaseButton);
         spo2TextView = findViewById(R.id.spo2TextView);
         hrTextView = findViewById(R.id.hrTextView);
         tempTextView = findViewById(R.id.tempTextView);
@@ -131,16 +131,16 @@ public class MainActivity extends AppCompatActivity {
         });
 
         // amplitude control
-        increaseButton.setOnClickListener(v -> {
-            amplitudeScale *= 1.2f;
-            Toast.makeText(this, "Amplitude: x" + String.format("%.2f", amplitudeScale), Toast.LENGTH_SHORT).show();
-        });
+//        increaseButton.setOnClickListener(v -> {
+//            amplitudeScale *= 1.2f;
+//            Toast.makeText(this, "Amplitude: x" + String.format("%.2f", amplitudeScale), Toast.LENGTH_SHORT).show();
+//        });
 
-        decreaseButton.setOnClickListener(v -> {
-            amplitudeScale /= 1.2f;
-            if (amplitudeScale < 0.1f) amplitudeScale = 0.1f;
-            Toast.makeText(this, "Amplitude: x" + String.format("%.2f", amplitudeScale), Toast.LENGTH_SHORT).show();
-        });
+//        decreaseButton.setOnClickListener(v -> {
+//            amplitudeScale /= 1.2f;
+//            if (amplitudeScale < 0.1f) amplitudeScale = 0.1f;
+//            Toast.makeText(this, "Amplitude: x" + String.format("%.2f", amplitudeScale), Toast.LENGTH_SHORT).show();
+//        });
 
         // === Bluetooth setup ===
         handler = new Handler();
@@ -211,7 +211,7 @@ public class MainActivity extends AppCompatActivity {
         chart.getDescription().setEnabled(false);
         chart.setDrawGridBackground(false);
         chart.setDrawBorders(false);
-        chart.setBackgroundColor(Color.rgb(255, 245, 247));
+        chart.setBackgroundColor(Color.rgb(247, 230, 233));
         // Remove all padding/offsets to stick charts together
 //        chart.setExtraOffsets(0, 0, 0, 0);
 //        chart.setViewPortOffsets(0, 0, 0, 0);
@@ -219,14 +219,14 @@ public class MainActivity extends AppCompatActivity {
 
         XAxis xAxis = chart.getXAxis();
         xAxis.setDrawGridLines(true);
-        xAxis.setGridColor(0x22000000);
-        xAxis.setLabelCount(80, true);
+        xAxis.setGridColor(0xAACB4B64);
+        xAxis.setLabelCount(10, true);
         xAxis.setDrawLabels(false);
 
         YAxis left = chart.getAxisLeft();
         left.setDrawGridLines(true);
-        left.setGridColor(0x22000000);
-        left.setLabelCount(40, true);
+        left.setGridColor(0x33CB4B64);
+        left.setLabelCount(20, true);
         left.setDrawLabels(false);
 
 
@@ -373,15 +373,21 @@ public class MainActivity extends AppCompatActivity {
                         String msg = bleBuffer.substring(0, index);
                         bleBuffer.delete(0, index + 1);
                         msg = msg.replaceAll("[\\r\\x00-\\x1F\\x7F]", "").trim();
-                        if (msg.startsWith("E:") && msg.contains(";P:")) {
+                        // Example parsing for messages like "E0.245;P0.370;T36.8"
+                        if (msg.startsWith("E") && msg.contains(";P")) {
                             try {
                                 String[] parts = msg.split(";");
-                                float ecg = Float.parseFloat(parts[0].substring(2));
-                                float ppg = Float.parseFloat(parts[1].substring(2));
-                                float spo2 = Float.NaN;
-                                if (parts.length >= 3 && parts[2].startsWith("S:"))
-                                    spo2 = Float.parseFloat(parts[2].substring(2));
-                                addEntry(-ecg, -ppg, spo2);
+
+                                // Remove the first character (E or P or T) and parse the remaining string
+                                float ecg = Float.parseFloat(parts[0].substring(1));  // skip 'E'
+                                float ppg = Float.parseFloat(parts[1].substring(1));  // skip 'P'
+                                float temp = Float.NaN;
+
+                                if (parts.length >= 3 && parts[2].startsWith("T")) {
+                                    temp = Float.parseFloat(parts[2].substring(1));   // skip 'T'
+                                }
+
+                                addEntry(ecg, -ppg, temp);
                             } catch (Exception e) {
                                 Log.e(TAG, "Parse error: " + msg);
                             }
@@ -392,7 +398,7 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
-    private void addEntry(float ecg, float ppg, float spo2) {
+    private void addEntry(float ecg, float ppg, float temp) {
         // add points
         ecgDataSet.addEntry(new Entry(sampleIndex, ecg * amplitudeScale));
         ppgDataSet.addEntry(new Entry(sampleIndex, ppg * amplitudeScale));
@@ -424,7 +430,8 @@ public class MainActivity extends AppCompatActivity {
         if (autoYPPGEnabled) adjustYAxis(ppgChart, ppgDataSet, false);
         else resetYAxis(ppgChart, false);
 
-        if (!Float.isNaN(spo2)) spo2TextView.setText(String.format("%.1f %%", spo2));
+//        if (!Float.isNaN(spo2)) spo2TextView.setText(String.format("%.1f %%", spo2));
+        if (!Float.isNaN(temp)) tempTextView.setText(String.format("%.1f %%", temp));
     }
 
     private void adjustYAxis(LineChart chart, LineDataSet set, boolean isEcg) {
